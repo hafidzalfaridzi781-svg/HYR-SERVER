@@ -15,9 +15,33 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
+/* ============================================================
+   CORS — Diperluas untuk WebView Android
+   - Origin dari .env (CORS_ORIGIN)
+   - Tanpa origin (curl, mobile app)
+   - 'null' (WebView file:///)
+   - 'file://' (WebView lokal)
+   ============================================================ */
+const allowedOrigins = [
+  ...(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean),
+  'null',
+  'file://'
+];
+
 app.use(cors({
-  origin: (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean),
-  credentials: true
+  origin: function (origin, callback) {
+    // Izinkan request tanpa origin (WebView Android, curl, mobile apps)
+    if (!origin) return callback(null, true);
+    // Izinkan origin yang di-whitelist
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Origin 'null' dari WebView file:///
+    if (origin === 'null') return callback(null, true);
+    // Selain itu, tolak
+    return callback(new Error('CORS not allowed: ' + origin));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 
 app.use(express.json({ limit: '64kb' }));
